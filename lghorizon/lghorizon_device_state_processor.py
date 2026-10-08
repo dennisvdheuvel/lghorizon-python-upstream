@@ -238,7 +238,7 @@ class LGHorizonDeviceStateProcessor:
         device_state.last_position_update = int(
             player_state.last_speed_change_time
         )
-        device_state.position = int(player_state.relative_position / 1000)
+        device_state.position = self._position_seconds(player_state)
         device_state.start_time = replay_event.start_time
         device_state.end_time = replay_event.end_time
         device_state.duration = replay_event.end_time - replay_event.start_time
@@ -291,7 +291,7 @@ class LGHorizonDeviceStateProcessor:
         device_state.start_time = replay_event.start_time
         device_state.end_time = replay_event.end_time
         device_state.duration = replay_event.end_time - replay_event.start_time
-        device_state.position = int(player_state.relative_position / 1000)
+        device_state.position = self._position_seconds(player_state)
         # Add random number to url to force refresh
         device_state.image = await self._get_intent_image_url(replay_event.event_id)
         device_state.cache_linear_metadata()
@@ -328,7 +328,7 @@ class LGHorizonDeviceStateProcessor:
 
         device_state.duration = vod.duration
         device_state.last_position_update = int(time.time())
-        device_state.position = int(player_state.relative_position / 1000)
+        device_state.position = self._position_seconds(player_state)
 
         device_state.image = await self._get_intent_image_url(vod.id)
 
@@ -360,7 +360,7 @@ class LGHorizonDeviceStateProcessor:
         device_state.last_position_update = int(
             player_state.last_speed_change_time
         )
-        device_state.position = int(player_state.relative_position / 1000)
+        device_state.position = self._position_seconds(player_state)
         device_state.ad_breaks = source.ad_manifest
         parsed_start = self._parse_timestamp(recording.start_time)
         parsed_end = self._parse_timestamp(recording.end_time)
@@ -378,6 +378,17 @@ class LGHorizonDeviceStateProcessor:
         device_state.media_type = LGHorizonMediaType.CHANNEL
 
         device_state.image = await self._get_intent_image_url(recording.id)
+
+    @staticmethod
+    def _position_seconds(player_state: LGHorizonPlayerState) -> Optional[int]:
+        """Return the playback position in seconds, or None when not reported.
+
+        A missing relativePosition must not be read as 0: recordings often
+        start with a pre-roll ad break at 0, which would flag a false ad break.
+        """
+        if player_state.relative_position is None:
+            return None
+        return int(player_state.relative_position / 1000)
 
     def _parse_timestamp(self, value) -> Optional[int]:
         """Parse a timestamp that may be numeric epoch seconds or an ISO-8601 string."""
